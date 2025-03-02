@@ -14,7 +14,7 @@ opt = torch.optim.Adam(
             [
                 {
                     "params": model.parameters(),
-                    "lr": 0.0003,
+                    "lr": 0.0005,
                     "weight_decay": 0
                 },
             ])
