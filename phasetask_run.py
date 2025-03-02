@@ -340,7 +340,7 @@ for i in range(iters):
     opt.step()
 
     print(f"iter {i}", f"total_loss: {loss.item()}", f"normal_loss: {loss_components["normal_constraint"].item()}", f"gradient_loss: {loss_components["grad_term"].item()}", f"double_well_term: {loss_components["double_well"].item()}", f"recon_loss: {loss_components["reconstruction"].item()}")
-    
+            
     # Print progress
     if i %1000 == 0:
         # run evaluation 
