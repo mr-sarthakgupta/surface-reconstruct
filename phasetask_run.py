@@ -194,10 +194,7 @@ class PHASELoss(nn.Module):
         normal_loss = self.normal_loss(u, points, normals)
                 
         total_loss = self.epsilon * gradient_loss + double_well_term + self.lambda_val * recon_loss + self.mu * normal_loss
-
-        print(f"total_loss: {total_loss.item()}", f"normal_loss: {normal_loss.item()}", f"gradient_loss: {gradient_loss.item()}", f"double_well_term: {double_well_term.item()}", f"recon_loss: {recon_loss.item()}")
-
-        
+                
         return total_loss, {
             'grad_term': gradient_loss,
             'double_well': double_well_term,
@@ -341,6 +338,9 @@ for i in range(iters):
     
     # Update parameters
     opt.step()
+
+    print(f"iter {i}", f"total_loss: {loss.item()}", f"normal_loss: {loss_components["normal_loss"].item()}", f"gradient_loss: {loss_components["gradient_loss"].item()}", f"double_well_term: {loss_components["double_well_term"].item()}", f"recon_loss: {loss_components["recon_loss"].item()}")
+    
     
     # Print progress
     if i %1000 == 0:
