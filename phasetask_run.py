@@ -103,7 +103,7 @@ class PHASELoss(nn.Module):
                 retain_graph=True,
                 only_inputs=True
             )[0]
-            return torch.mean(torch.norm(1 - torch.norm(w_grads, p = 2, dim = -1), p = 1, dim = -1) ** 2)
+            return torch.mean(torch.norm(torch.ones_like(torch.norm(w_grads, p = 2, dim = -1)) - torch.norm(w_grads, p = 2, dim = -1), p = 1, dim = -1) ** 2)
 
         if normals is not None:
             w_outs = self.w(self.epsilon, u, points)
@@ -318,7 +318,7 @@ gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
 
 points_range = (gt_points_all.min(), gt_points_all.max())
 
-n_iter_points = 200
+n_iter_points = 10
 
 for i in range(iters):
     idx = torch.randint(0, gt_points_all.shape[0], (n_iter_points,  ))
