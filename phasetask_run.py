@@ -301,7 +301,7 @@ def evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.
 
 
 iters=100000
-loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.001, use_normals=False)
+loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.05, use_normals=False)
 
 gt_mesh_path = "Preimage_Implicit_DLTaskData/meshes/armadillo.obj"
 
