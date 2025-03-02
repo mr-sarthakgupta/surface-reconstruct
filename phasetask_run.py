@@ -134,7 +134,7 @@ class PHASELoss(nn.Module):
         y_min, y_max = dim_range[0], dim_range[1]
         z_min, z_max = dim_range[0], dim_range[1]
 
-        steps = 10  # Number of steps in each dimension
+        steps = 5  # Number of steps in each dimension
         x_vals = torch.linspace(x_min, x_max, steps)
         y_vals = torch.linspace(y_min, y_max, steps)
         z_vals = torch.linspace(z_min, z_max, steps)
@@ -318,7 +318,7 @@ gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
 
 points_range = (gt_points_all.min(), gt_points_all.max())
 
-n_iter_points = 10
+n_iter_points = 100
 
 for i in range(iters):
     idx = torch.randint(0, gt_points_all.shape[0], (n_iter_points,  ))
