@@ -44,7 +44,7 @@ def write_pointcloud(p,filename):
 #         pass
 
 class PHASELoss(nn.Module):
-    def __init__(self, epsilon=0.01, lambda_val=0.1, mu=0.1, ball_radius=0.01, iter_points = 50, use_normals=False):
+    def __init__(self, epsilon=0.01, lambda_val=0.1, mu=0.1, ball_radius=0.05, iter_points = 10, use_normals=False):
         """
         Args:
             epsilon: Regularization parameter that controls smoothness
@@ -207,7 +207,7 @@ class PHASELoss(nn.Module):
 
 
 
-lam, eps, mu = [10, 0.01, 10]
+lam, eps, mu = [10, 0.01, 0.1]
 
 
 def compute_chamfer_distance(pred_points, gt_points):
