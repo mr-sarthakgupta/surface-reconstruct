@@ -318,7 +318,7 @@ gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
 
 points_range = (gt_points_all.min(), gt_points_all.max())
 
-n_iter_points = 100
+n_iter_points = 10
 
 for i in range(iters):
     idx = torch.randint(0, gt_points_all.shape[0], (n_iter_points,  ))
