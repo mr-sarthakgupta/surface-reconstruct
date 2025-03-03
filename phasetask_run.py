@@ -234,7 +234,8 @@ def compute_chamfer_distance(pred_points, gt_points):
 
 
 def sdf_function(epsilon, u, x):
-    return -1 * sqrt(epsilon) * torch.log(1 - torch.abs(u(x))) * torch.sign(u(x))
+    u_outs = u(x.cuda())
+    return -1 * sqrt(epsilon) * torch.log(torch.ones_like(u_outs).cuda() - torch.abs(u_outs)) * torch.sign(u_outs)
 
 def sample_mesh_points(mesh_path, n_points=10000):
     """
@@ -344,14 +345,11 @@ for i in range(iters):
     # Print progress
     if i %1000 == 0:
         # run evaluation 
-        try:
-            chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.0), n_points=10000)
-            print(f"Chamfer distance: {chamfer_dist:.6f}")
-            # create mesh with marching cubes
-            write_mesh(v,f,f'intermediates/mesh_{i}.ply')
-        except:
-            print("Error in evaluation")
-
+        chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.0), n_points=10000)
+        print(f"Chamfer distance: {chamfer_dist:.6f}")
+        # create mesh with marching cubes
+        write_mesh(v,f,f'intermediates/mesh_{i}.ply')
+        
         print(f"Iter {i}/{iters}, Loss: {loss.item():.6f}, "
               f"Grad: {loss_components['grad_term']:.6f}, "
               f"DW: {loss_components['double_well']:.6f}, "
