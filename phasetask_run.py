@@ -6,10 +6,12 @@ import numpy as np
 from math import sqrt
 # import your libraries
 
-from IGR.code.model.network import ImplicitNet
+from model import ImplicitNet
 
 # instantiate the model and optimizer
 model = ImplicitNet(d_in = 3, dims = [ 512, 512, 512, 512, 512, 512, 512, 512 ], skip_in = [4], geometric_init = True)
+
+
 opt = torch.optim.Adam(
             [
                 {
@@ -61,7 +63,7 @@ class PHASELoss(nn.Module):
         self.use_normals = use_normals
         
     def double_well_potential(self, x):
-        return torch.mean(x**2 - 2*torch.abs(x) + 1)
+        return torch.mean(x**2 - 2*torch.abs(x) + torch.ones_like(x))
     
     def reconstruction_loss(self, u, points, sample_count=10):
         """
@@ -88,7 +90,8 @@ class PHASELoss(nn.Module):
         return torch.stack(u_values, dim = 0).mean()
 
     def w(self, epsilon, u, x):
-        return -1 * sqrt(self.epsilon) * torch.log(1 - torch.abs(u(x))) * torch.sign(u(x))      
+        u_outs = u(x.cuda())
+        return -1 * sqrt(epsilon) * torch.log(torch.ones_like(u_outs).cuda() - torch.abs(u_outs)) * torch.sign(u_outs)
 
     def normal_loss(self, u, points, normals):
         points.requires_grad_(True)
