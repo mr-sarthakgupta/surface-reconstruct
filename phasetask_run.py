@@ -61,7 +61,7 @@ class PHASELoss(nn.Module):
         self.fourier_features = fourier_features
         
     def double_well_potential(self, x):
-        return torch.mean(torch.pow(x, 2) - 2*torch.abs(x) + torch.ones_like(x))
+        return torch.sum(torch.pow(x, 2) - 2*torch.abs(x) + torch.ones_like(x))
     
     def reconstruction_loss(self, u, points, sample_count=400):
         """
