@@ -70,15 +70,13 @@ class ImplicitNet(nn.Module):
         x = input
 
         for layer in range(0, self.num_layers - 1):
-
             lin = getattr(self, "lin" + str(layer))
-
             if layer in self.skip_in:
                 x = torch.cat([x, input], -1) / np.sqrt(2)
-
             x = lin(x)
 
             if layer < self.num_layers - 2:
                 x = self.activation(x)
 
+        # return x
         return self.tanh(x)

@@ -9,18 +9,6 @@ from math import sqrt
 from model import ImplicitNet
 
 # instantiate the model and optimizer
-model = ImplicitNet(d_in = 3, dims = [ 512, 512, 512, 512, 512, 512, 512, 512 ], skip_in = [4], geometric_init = True)
-
-
-opt = torch.optim.Adam(
-            [
-                {
-                    "params": model.parameters(),
-                    "lr": 0.0005,
-                    "weight_decay": 0
-                },
-            ])
-
 
 def load_pointcloud(filename):
     pcd = o3d.io.read_point_cloud(filename)
@@ -45,8 +33,17 @@ def write_pointcloud(p,filename):
 #     def phase_loss(self, x):
 #         pass
 
+class FourierFeatureTransform(nn.Module):
+    def __init__(self, input_dim, mapping_size, scale):
+        super().__init__()
+        self.B = torch.randn((input_dim, mapping_size)) * scale
+    
+    def forward(self, x):
+        x_proj = 2 * np.pi * x @ self.B.to(x.device)
+        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
+
 class PHASELoss(nn.Module):
-    def __init__(self, epsilon=0.01, lambda_val=0.1, mu=0.1, ball_radius=0.05, iter_points = 10, use_normals=False):
+    def __init__(self, epsilon=0.01, lambda_val=0.1, mu=0.1, ball_radius=0.05, iter_points = 10, use_normals=False, fourier_features = None):
         """
         Args:
             epsilon: Regularization parameter that controls smoothness
@@ -61,11 +58,12 @@ class PHASELoss(nn.Module):
         self.mu = mu
         self.ball_radius = ball_radius
         self.use_normals = use_normals
+        self.fourier_features = fourier_features
         
     def double_well_potential(self, x):
-        return torch.mean(x**2 - 2*torch.abs(x) + torch.ones_like(x))
+        return torch.mean(torch.pow(x, 2) - 2*torch.abs(x) + torch.ones_like(x))
     
-    def reconstruction_loss(self, u, points, sample_count=10):
+    def reconstruction_loss(self, u, points, sample_count=100):
         """
         Args:
             u: Neural network representing the signed density
@@ -85,8 +83,7 @@ class PHASELoss(nn.Module):
         
         u_values = []
         for point in points:
-            u_values.append(u(points).mean().abs())
-
+            u_values.append(u(point).abs().sum() / abs(self.ball_radius))
         return torch.stack(u_values, dim = 0).mean()
 
     def w(self, epsilon, u, x):
@@ -95,9 +92,9 @@ class PHASELoss(nn.Module):
 
     def normal_loss(self, u, points, normals):
         points.requires_grad_(True)
-        if normals is None:
+        if self.use_normals is False:
             w_outs = self.w(self.epsilon, u, points)
-            grad_outputs = torch.ones_like(w_outs)
+            grad_outputs = torch.ones_like(w_outs)  
             w_grads = torch.autograd.grad(
                 outputs=w_outs,
                 inputs=points,
@@ -106,9 +103,10 @@ class PHASELoss(nn.Module):
                 retain_graph=True,
                 only_inputs=True
             )[0]
-            return torch.mean(torch.norm(torch.ones_like(torch.norm(w_grads, p = 2, dim = -1)) - torch.norm(w_grads, p = 2, dim = -1), p = 1, dim = -1) ** 2)
+            grad_norm = torch.norm(w_grads, p = 2, dim = -1)
+            return torch.mean(torch.abs(torch.ones_like(grad_norm) - grad_norm) ** 2)
 
-        if normals is not None:
+        if self.use_normals:
             w_outs = self.w(self.epsilon, u, points)
             grad_outputs = torch.ones_like(w_outs)
             w_grads = torch.autograd.grad(
@@ -137,7 +135,7 @@ class PHASELoss(nn.Module):
         y_min, y_max = dim_range[0], dim_range[1]
         z_min, z_max = dim_range[0], dim_range[1]
 
-        steps = 5  # Number of steps in each dimension
+        steps = 6  # Number of steps in each dimension
         x_vals = torch.linspace(x_min, x_max, steps)
         y_vals = torch.linspace(y_min, y_max, steps)
         z_vals = torch.linspace(z_min, z_max, steps)
@@ -157,6 +155,7 @@ class PHASELoss(nn.Module):
                     
                     # Compute gradients of w with respect to input points
                     grad_outputs = torch.ones_like(u_outs)
+                    
                     gradients = torch.autograd.grad(
                         outputs=u_outs,
                         inputs=curr_points,
@@ -164,9 +163,10 @@ class PHASELoss(nn.Module):
                         create_graph=True,
                         retain_graph=True,
                         only_inputs=True
-                    )
-                    
-                    inte += torch.norm(gradients[0], dim=-1, p=2)**2 * volume_element      
+                    )[0]
+
+                    # inte += torch.norm(gradients[0], dim=-1, p=2)**2 * volume_element      
+                    inte += torch.norm(gradients, dim=-1, p=2)**2      
 
         return inte.mean() 
         
@@ -179,8 +179,10 @@ class PHASELoss(nn.Module):
             points: Input point cloud
             normals: Surface normals (optional)
         """
-        
-        u = lambda x: model(x)
+        if self.fourier_features is not None:   
+            u = lambda x: model(self.fourier_features(x))
+        else:
+            u = lambda x: model(x)
 
         # Define the log-transformed function w (the smoothed SDF)
         # w = lambda x: -torch.sqrt(self.epsilon) * torch.log(1 - torch.abs(u(x))) * torch.sign(u(x))      
@@ -207,7 +209,7 @@ class PHASELoss(nn.Module):
 
 
 
-lam, eps, mu = [10, 0.01, 0.1]
+lam, eps, mu = [10, 0.01, 10]
 
 
 def compute_chamfer_distance(pred_points, gt_points):
@@ -299,14 +301,36 @@ def evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.
         
     return chamfer_dist, v, f
 
+fourier = False
+
+if fourier:
+    input_dim = 3
+    mapping_size = 256
+    scale = 10.0
+    model = ImplicitNet(d_in = mapping_size * 2, dims = [ 512, 512, 512, 512, 512, 512, 512, 512 ], skip_in = [4], geometric_init = True)
+    fourier_features = FourierFeatureTransform(input_dim, mapping_size, scale)
+    fourier_features.to("cuda:0")
+else:
+    model = ImplicitNet(d_in = 3, dims = [ 512, 512, 512, 512, 512, 512, 512, 512 ], skip_in = [4], geometric_init = False)
+    fourier_features = None
+
+opt = torch.optim.Adam(
+            [
+                {
+                    "params": model.parameters(),
+                    "lr": 0.0003,
+                    "weight_decay": 0
+                },
+            ])
+
 
 
 iters=100000
-loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.05, use_normals=False)
+loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.05, use_normals=False, fourier_features = fourier_features)
 
 gt_mesh_path = "Preimage_Implicit_DLTaskData/meshes/armadillo.obj"
 
-normals = False
+normals = True
 
 if normals:
     # Load normals if available
@@ -322,7 +346,7 @@ gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
 
 points_range = (gt_points_all.min(), gt_points_all.max())
 
-n_iter_points = 10
+n_iter_points = 50
 
 for i in range(iters):
     idx = torch.randint(0, gt_points_all.shape[0], (n_iter_points,  ))
@@ -339,19 +363,48 @@ for i in range(iters):
     
     # Backward pass
     loss.backward()
+
+    # if torch.isnan(loss):
+    #     print(f"NaN values found in loss at iteration {i}")
+    #     for name, value in loss_components.items():
+    #         if torch.isnan(value):
+    #             print(f"NaN values found in loss component: {name}")
+    #     continue
+
+    # if torch.isnan(selected_points).any():
+    #     print(f"NaN values found in selected points at iteration {i}")
+    #     continue
     
-    # Update parameters
+    # nan_in_weights = False
+    # for name, param in model.named_parameters():
+    #     if torch.isnan(param).any():
+    #         print(f"NaN values found in model weights at iteration {i}, parameter: {name}")
+    #         nan_in_weights = True
+    #         break
+    
+    # nan_in_gradients = False
+    # for name, param in model.named_parameters():
+    #     if param.grad is not None and torch.isnan(param.grad).any():
+    #         print(f"NaN values found in gradients at iteration {i}, parameter: {name}")
+    #         nan_in_gradients = True
+    #         break
+
+    # if nan_in_weights or nan_in_gradients or torch.isnan(selected_points).any() or torch.isnan(loss).any():
+    #     exit()
+    
     opt.step()
 
     print(f"iter {i}", f"total_loss: {loss.item():.4f}", f"normal_loss: {loss_components['normal_constraint'].item():.4f}", f"gradient_loss: {loss_components['grad_term'].item():.4f}", f"double_well_term: {loss_components['double_well'].item():.4f}", f"recon_loss: {loss_components['reconstruction'].item():.4f}")
             
-    # Print progress
     if i %1000 == 0:
         # run evaluation 
-        chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.0), n_points=10000)
-        print(f"Chamfer distance: {chamfer_dist:.6f}")
-        # create mesh with marching cubes
-        write_mesh(v,f,f'intermediates/mesh_{i}.ply')
+        try:
+            chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.0), n_points=10000)
+            print(f"Chamfer distance: {chamfer_dist:.6f}")
+            # create mesh with marching cubes
+            write_mesh(v,f,f'intermediates/mesh_{i}.ply')
+        except:
+            print("Error in evaluation")
         
         print(f"Iter {i}/{iters}, Loss: {loss.item():.6f}, "
               f"Grad: {loss_components['grad_term']:.6f}, "
