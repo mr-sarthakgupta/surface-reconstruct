@@ -43,7 +43,7 @@ class FourierFeatureTransform(nn.Module):
         return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 
 class PHASELoss(nn.Module):
-    def __init__(self, epsilon=0.01, lambda_val=0.1, mu=0.1, ball_radius=0.05, iter_points = 10, use_normals=False, fourier_features = None):
+    def __init__(self, epsilon=0.01, lambda_val=0.1, mu=0.1, ball_radius=0.025, iter_points = 10, use_normals=False, fourier_features = None):
         """
         Args:
             epsilon: Regularization parameter that controls smoothness
@@ -63,7 +63,7 @@ class PHASELoss(nn.Module):
     def double_well_potential(self, x):
         return torch.mean(torch.pow(x, 2) - 2*torch.abs(x) + torch.ones_like(x))
     
-    def reconstruction_loss(self, u, points, sample_count=100):
+    def reconstruction_loss(self, u, points, sample_count=400):
         """
         Args:
             u: Neural network representing the signed density
@@ -135,7 +135,7 @@ class PHASELoss(nn.Module):
         y_min, y_max = dim_range[0], dim_range[1]
         z_min, z_max = dim_range[0], dim_range[1]
 
-        steps = 6  # Number of steps in each dimension
+        steps = 10  # Number of steps in each dimension
         x_vals = torch.linspace(x_min, x_max, steps)
         y_vals = torch.linspace(y_min, y_max, steps)
         z_vals = torch.linspace(z_min, z_max, steps)
@@ -146,29 +146,39 @@ class PHASELoss(nn.Module):
         dz = (z_max - z_min) / steps
         volume_element = dx * dy * dz
 
-        for i in range(steps):
-            for j in range(steps):
-                for k in range(steps):
-                    curr_points = torch.tensor([[x_vals[i], y_vals[j], z_vals[k]]], requires_grad=True)
-                    curr_points.requires_grad_(True)
-                    u_outs = u(curr_points.cuda())
-                    
-                    # Compute gradients of w with respect to input points
-                    grad_outputs = torch.ones_like(u_outs)
-                    
-                    gradients = torch.autograd.grad(
-                        outputs=u_outs,
-                        inputs=curr_points,
-                        grad_outputs=grad_outputs,
-                        create_graph=True,
-                        retain_graph=True,
-                        only_inputs=True
-                    )[0]
+        # Create a grid of all points at once
+        grid_points = torch.stack(torch.meshgrid([x_vals, y_vals, z_vals], indexing='ij')).permute(1, 2, 3, 0).reshape(-1, 3)
+        grid_points.requires_grad_(True)
 
-                    # inte += torch.norm(gradients[0], dim=-1, p=2)**2 * volume_element      
-                    inte += torch.norm(gradients, dim=-1, p=2)**2      
+        # Process in batches to avoid memory issues
+        batch_size = 1000
+        total_points = grid_points.shape[0]
+        inte_sum = torch.zeros(1).cuda()
 
-        return inte.mean() 
+        for batch_start in range(0, total_points, batch_size):
+            batch_end = min(batch_start + batch_size, total_points)
+            curr_batch = grid_points[batch_start:batch_end].cuda()
+            
+            # Forward pass
+            u_outs = u(curr_batch)
+            
+            # Compute gradients
+            grad_outputs = torch.ones_like(u_outs)
+            gradients = torch.autograd.grad(
+                outputs=u_outs,
+                inputs=curr_batch,
+                grad_outputs=grad_outputs,
+                create_graph=True,
+                retain_graph=True,
+                only_inputs=True
+            )[0]
+            
+            # Accumulate squared gradient norms
+            inte_sum += torch.sum(torch.norm(gradients, dim=-1, p=2)**2)
+
+        inte = inte_sum * volume_element
+
+        return inte 
         
     def forward(self, model, points, dim_range, normals=None):
         """
@@ -253,7 +263,7 @@ def sample_mesh_points(mesh_path, n_points=10000):
     points = torch.tensor(np.asarray(pcd.points), dtype=torch.float32)
     return points
 
-def evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.0), n_points=10000):
+def evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-2.0, 2.0), n_points=10000):
     """
     Args:
         model: Neural network model for implicit function
@@ -262,6 +272,7 @@ def evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.
         bounds (tuple): Min and max bounds for the grid
         n_points (int): Number of points to sample for Chamfer distance    
     """
+    
     with torch.no_grad():
         # Create grid for marching cubes
         x = np.linspace(bounds[0], bounds[1], resolution)
@@ -283,6 +294,9 @@ def evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.
         sdf_grid = np.concatenate(sdf_grid, axis=0).reshape(resolution, resolution, resolution)
         
         # Generate mesh using marching cubes
+
+        print("SDF minimum and maximum", sdf_grid.min(), sdf_grid.max())
+
         v, f, _, _ = measure.marching_cubes(sdf_grid, level = 0)
         
         # Scale vertices back to original coordinate system
@@ -311,8 +325,36 @@ if fourier:
     fourier_features = FourierFeatureTransform(input_dim, mapping_size, scale)
     fourier_features.to("cuda:0")
 else:
-    model = ImplicitNet(d_in = 3, dims = [ 512, 512, 512, 512, 512, 512, 512, 512 ], skip_in = [4], geometric_init = False)
+    model = ImplicitNet(d_in = 3, dims = [ 512, 512, 512, 512, 512, 512, 512, 512 ], skip_in = [4], geometric_init = True)
     fourier_features = None
+
+
+def analyze_model_weights(model):
+    weights = []
+    for name, param in model.named_parameters():
+        if 'weight' in name:
+            weights.extend(param.data.cpu().flatten().tolist())
+    
+    
+    weights = torch.tensor(weights)
+    stats = {
+        'avg': weights.mean().item(),
+        'median': weights.median().item(),
+        'min': weights.min().item(),
+        'max': weights.max().item(),
+        'abs_avg': weights.abs().mean().item()
+    }
+    
+    print(f"Model weights statistics:")
+    print(f"  Average: {stats['avg']:.6f}")
+    print(f"  Median:  {stats['median']:.6f}")
+    print(f"  Min:     {stats['min']:.6f}")
+    print(f"  Max:     {stats['max']:.6f}")
+    print(f"  Abs Avg: {stats['abs_avg']:.6f}")
+    
+    return stats
+
+analyze_model_weights(model)
 
 opt = torch.optim.Adam(
             [
@@ -326,7 +368,7 @@ opt = torch.optim.Adam(
 
 
 iters=100000
-loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.05, use_normals=False, fourier_features = fourier_features)
+loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.025, use_normals=False, fourier_features = fourier_features)
 
 gt_mesh_path = "Preimage_Implicit_DLTaskData/meshes/armadillo.obj"
 
@@ -334,7 +376,7 @@ normals = True
 
 if normals:
     # Load normals if available
-    normals = load_pointcloud('bunny_normals.ply')
+    normals = load_pointcloud('Preimage_Implicit_DLTaskData/armadillo_normals_10000.xyz')
 else:    
     normals = None
 
@@ -346,7 +388,7 @@ gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
 
 points_range = (gt_points_all.min(), gt_points_all.max())
 
-n_iter_points = 50
+n_iter_points = 200
 
 for i in range(iters):
     idx = torch.randint(0, gt_points_all.shape[0], (n_iter_points,  ))
@@ -363,51 +405,32 @@ for i in range(iters):
     
     # Backward pass
     loss.backward()
-
-    # if torch.isnan(loss):
-    #     print(f"NaN values found in loss at iteration {i}")
-    #     for name, value in loss_components.items():
-    #         if torch.isnan(value):
-    #             print(f"NaN values found in loss component: {name}")
-    #     continue
-
-    # if torch.isnan(selected_points).any():
-    #     print(f"NaN values found in selected points at iteration {i}")
-    #     continue
-    
-    # nan_in_weights = False
-    # for name, param in model.named_parameters():
-    #     if torch.isnan(param).any():
-    #         print(f"NaN values found in model weights at iteration {i}, parameter: {name}")
-    #         nan_in_weights = True
-    #         break
-    
-    # nan_in_gradients = False
-    # for name, param in model.named_parameters():
-    #     if param.grad is not None and torch.isnan(param.grad).any():
-    #         print(f"NaN values found in gradients at iteration {i}, parameter: {name}")
-    #         nan_in_gradients = True
-    #         break
-
-    # if nan_in_weights or nan_in_gradients or torch.isnan(selected_points).any() or torch.isnan(loss).any():
-    #     exit()
-    
+   
     opt.step()
 
     print(f"iter {i}", f"total_loss: {loss.item():.4f}", f"normal_loss: {loss_components['normal_constraint'].item():.4f}", f"gradient_loss: {loss_components['grad_term'].item():.4f}", f"double_well_term: {loss_components['double_well'].item():.4f}", f"recon_loss: {loss_components['reconstruction'].item():.4f}")
             
     if i %1000 == 0:
         # run evaluation 
-        try:
-            chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-1.0, 1.0), n_points=10000)
-            print(f"Chamfer distance: {chamfer_dist:.6f}")
-            # create mesh with marching cubes
-            write_mesh(v,f,f'intermediates/mesh_{i}.ply')
-        except:
-            print("Error in evaluation")
+        # try:
+        chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-2.0, 2.0), n_points=10000)
+        print(f"Chamfer distance: {chamfer_dist:.6f}")
+        # create mesh with marching cubes
+        write_mesh(v,f,f'intermediates/mesh_{i}.ply')
+        # except:
+        #     print("Error in evaluation")
+
+        # Save model checkpoint
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': opt.state_dict(),
+            'iteration': i,
+            'loss': loss.item(),
+            'chamfer_dist': chamfer_dist,
+        }, f'trained_models/model_checkpoint_{i}.pt')
         
         print(f"Iter {i}/{iters}, Loss: {loss.item():.6f}, "
-              f"Grad: {loss_components['grad_term']:.6f}, "
-              f"DW: {loss_components['double_well']:.6f}, "
-              f"Recon: {loss_components['reconstruction']:.6f}, "
-              f"Norm: {loss_components['normal_constraint']:.6f}")
+              f"Grad: {loss_components['grad_term'].item():.6f}, "
+              f"DW: {loss_components['double_well'].item():.6f}, "
+              f"Recon: {loss_components['reconstruction'].item():.6f}, "
+              f"Norm: {loss_components['normal_constraint'].item():.6f}")

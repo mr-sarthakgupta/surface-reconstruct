@@ -47,7 +47,8 @@ class ImplicitNet(nn.Module):
 
                 if layer == self.num_layers - 2:
 
-                    torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[layer]), std=0.00001)
+                    # torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[layer]), std=0.00001)
+                    torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[layer]), std=0.1)
                     torch.nn.init.constant_(lin.bias, -radius_init)
                 else:
                     torch.nn.init.constant_(lin.bias, 0.0)
@@ -64,7 +65,6 @@ class ImplicitNet(nn.Module):
             self.activation = nn.ReLU()
 
         self.tanh = nn.Tanh()
-
     def forward(self, input):
 
         x = input
