@@ -11,4 +11,5 @@ err*
 *.pyc
 *DS_Store*
 *.csh
-intermediates*
+intermediates
+trained_models

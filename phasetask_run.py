@@ -193,9 +193,6 @@ class PHASELoss(nn.Module):
             u = lambda x: model(self.fourier_features(x))
         else:
             u = lambda x: model(x)
-
-        # Define the log-transformed function w (the smoothed SDF)
-        # w = lambda x: -torch.sqrt(self.epsilon) * torch.log(1 - torch.abs(u(x))) * torch.sign(u(x))      
         
         double_well_term = self.double_well_potential(u(points))
         
@@ -388,7 +385,9 @@ gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
 
 points_range = (gt_points_all.min(), gt_points_all.max())
 
-n_iter_points = 200
+n_iter_points = 100
+
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=100000, verbose=True)
 
 for i in range(iters):
     idx = torch.randint(0, gt_points_all.shape[0], (n_iter_points,  ))
@@ -407,18 +406,18 @@ for i in range(iters):
     loss.backward()
    
     opt.step()
-
+    # scheduler.step()
     print(f"iter {i}", f"total_loss: {loss.item():.4f}", f"normal_loss: {loss_components['normal_constraint'].item():.4f}", f"gradient_loss: {loss_components['grad_term'].item():.4f}", f"double_well_term: {loss_components['double_well'].item():.4f}", f"recon_loss: {loss_components['reconstruction'].item():.4f}")
             
     if i %1000 == 0:
         # run evaluation 
-        # try:
-        chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-2.0, 2.0), n_points=10000)
-        print(f"Chamfer distance: {chamfer_dist:.6f}")
-        # create mesh with marching cubes
-        write_mesh(v,f,f'intermediates/mesh_{i}.ply')
-        # except:
-        #     print("Error in evaluation")
+        try:
+            chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-2.0, 2.0), n_points=10000)
+            print(f"Chamfer distance: {chamfer_dist:.6f}")
+            # create mesh with marching cubes
+            write_mesh(v,f,f'intermediates/mesh_{i}.ply')
+        except:
+            print("Error in evaluation")
 
         # Save model checkpoint
         torch.save({
