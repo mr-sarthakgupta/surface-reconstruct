@@ -357,7 +357,7 @@ opt = torch.optim.Adam(
             [
                 {
                     "params": model.parameters(),
-                    "lr": 0.0003,
+                    "lr": 0.00003,
                     "weight_decay": 0
                 },
             ])
@@ -369,7 +369,7 @@ loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.025, use_n
 
 gt_mesh_path = "Preimage_Implicit_DLTaskData/meshes/armadillo.obj"
 
-normals = True
+normals = False
 
 if normals:
     # Load normals if available
@@ -415,7 +415,7 @@ for i in range(iters):
             chamfer_dist, v, f = evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-2.0, 2.0), n_points=10000)
             print(f"Chamfer distance: {chamfer_dist:.6f}")
             # create mesh with marching cubes
-            write_mesh(v,f,f'intermediates/mesh_{i}.ply')
+            write_mesh(v,f,f'intermediates/mesh_{i}_{chamfer_dist:.4f}.ply')
         except:
             print("Error in evaluation")
 
@@ -426,7 +426,7 @@ for i in range(iters):
             'iteration': i,
             'loss': loss.item(),
             'chamfer_dist': chamfer_dist,
-        }, f'trained_models/model_checkpoint_{i}.pt')
+        }, f'trained_models/model_checkpoint_{i}_{chamfer_dist}.pt')
         
         print(f"Iter {i}/{iters}, Loss: {loss.item():.6f}, "
               f"Grad: {loss_components['grad_term'].item():.6f}, "
