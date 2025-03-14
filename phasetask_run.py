@@ -353,11 +353,11 @@ def analyze_model_weights(model):
 
 analyze_model_weights(model)
 
-opt = torch.optim.Adam(
+opt = torch.optim.AdamW(
             [
                 {
                     "params": model.parameters(),
-                    "lr": 0.00001,
+                    "lr": 0.00003,
                     "weight_decay": 0
                 },
             ])
@@ -365,7 +365,7 @@ opt = torch.optim.Adam(
 
 
 iters=100000
-loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.025, use_normals=False, fourier_features = fourier_features)
+loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.045, use_normals=False, fourier_features = fourier_features)
 
 gt_mesh_path = "Preimage_Implicit_DLTaskData/meshes/armadillo.obj"
 
