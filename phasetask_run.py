@@ -406,7 +406,7 @@ for i in range(iters):
     loss.backward()
    
     opt.step()
-    # scheduler.step()
+    scheduler.step()
     print(f"iter {i}", f"total_loss: {loss.item():.4f}", f"normal_loss: {loss_components['normal_constraint'].item():.4f}", f"gradient_loss: {loss_components['grad_term'].item():.4f}", f"double_well_term: {loss_components['double_well'].item():.4f}", f"recon_loss: {loss_components['reconstruction'].item():.4f}")
             
     if i %1000 == 0:
