@@ -365,7 +365,7 @@ opt = torch.optim.AdamW(
 
 
 iters=100000
-loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.045, use_normals=False, fourier_features = fourier_features)
+loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.005, use_normals=False, fourier_features = fourier_features)
 
 gt_mesh_path = "Preimage_Implicit_DLTaskData/meshes/armadillo.obj"
 
