@@ -1,0 +1,10 @@
+bar
+base
+cafe
+canteen
+center
+corridor
+innovation
+lab
+library
+office

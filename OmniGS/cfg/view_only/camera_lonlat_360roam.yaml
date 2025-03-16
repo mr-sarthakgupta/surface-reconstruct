@@ -1,0 +1,6 @@
+%YAML:1.0
+
+Camera.type: "Lonlat"
+
+Camera.w: 1520
+Camera.h: 760
