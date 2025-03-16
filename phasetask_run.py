@@ -117,6 +117,11 @@ class PHASELoss(nn.Module):
                 retain_graph=True,
                 only_inputs=True
             )[0]
+
+            print(normals.shape, w_grads.shape)
+
+            exit()
+
             return torch.mean(torch.norm(normals - w_grads, p = 2, dim = -1) ** 2)
 
     
@@ -313,6 +318,7 @@ def evaluate_reconstruction(model, gt_mesh_path, resolution=64, bounds=(-2.0, 2.
     return chamfer_dist, v, f
 
 fourier = False
+# fourier = True
 
 if fourier:
     input_dim = 3
@@ -357,7 +363,7 @@ opt = torch.optim.AdamW(
             [
                 {
                     "params": model.parameters(),
-                    "lr": 0.00003,
+                    "lr": 0.0005,
                     "weight_decay": 0
                 },
             ])
@@ -365,11 +371,11 @@ opt = torch.optim.AdamW(
 
 
 iters=100000
-loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.005, use_normals=False, fourier_features = fourier_features)
+loss_fn = PHASELoss(epsilon=eps, lambda_val=lam, mu=mu, ball_radius=0.0025, use_normals=True, fourier_features = fourier_features)
 
 gt_mesh_path = "Preimage_Implicit_DLTaskData/meshes/armadillo.obj"
 
-normals = False
+normals = True
 
 if normals:
     # Load normals if available
@@ -377,11 +383,12 @@ if normals:
 else:    
     normals = None
 
+gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
+
 model.train()
 
 model.to("cuda:0")
 
-gt_points_all = sample_mesh_points(gt_mesh_path, n_points=10000)
 
 points_range = (gt_points_all.min(), gt_points_all.max())
 
@@ -416,20 +423,21 @@ for i in range(iters):
             print(f"Chamfer distance: {chamfer_dist:.6f}")
             # create mesh with marching cubes
             write_mesh(v,f,f'intermediates/mesh_{i}_{chamfer_dist:.4f}.ply')
+            # Save model checkpoint
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': opt.state_dict(),
+                'iteration': i,
+                'loss': loss.item(),
+                'chamfer_dist': chamfer_dist,
+            }, f'trained_models/model_checkpoint_{i}_{chamfer_dist}.pt')
+            
+            print(f"Iter {i}/{iters}, Loss: {loss.item():.6f}, "
+                f"Grad: {loss_components['grad_term'].item():.6f}, "
+                f"DW: {loss_components['double_well'].item():.6f}, "
+                f"Recon: {loss_components['reconstruction'].item():.6f}, "
+                f"Norm: {loss_components['normal_constraint'].item():.6f}")
+
         except:
             print("Error in evaluation")
-
-        # Save model checkpoint
-        torch.save({
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': opt.state_dict(),
-            'iteration': i,
-            'loss': loss.item(),
-            'chamfer_dist': chamfer_dist,
-        }, f'trained_models/model_checkpoint_{i}_{chamfer_dist}.pt')
         
-        print(f"Iter {i}/{iters}, Loss: {loss.item():.6f}, "
-              f"Grad: {loss_components['grad_term'].item():.6f}, "
-              f"DW: {loss_components['double_well'].item():.6f}, "
-              f"Recon: {loss_components['reconstruction'].item():.6f}, "
-              f"Norm: {loss_components['normal_constraint'].item():.6f}")

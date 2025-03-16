@@ -1,0 +1,64 @@
+aiohappyeyeballs @ file:///home/conda/feedstock_root/build_artifacts/aiohappyeyeballs_1739175731979/work
+aiohttp @ file:///home/conda/feedstock_root/build_artifacts/aiohttp_1740481426959/work
+aiosignal @ file:///home/conda/feedstock_root/build_artifacts/aiosignal_1734342155601/work
+attrs @ file:///home/conda/feedstock_root/build_artifacts/attrs_1737819173731/work
+blinker @ file:///home/conda/feedstock_root/build_artifacts/blinker_1731096409132/work
+Brotli @ file:///home/conda/feedstock_root/build_artifacts/brotli-split_1725267488082/work
+certifi @ file:///home/conda/feedstock_root/build_artifacts/certifi_1739515848642/work/certifi
+charset-normalizer @ file:///home/conda/feedstock_root/build_artifacts/charset-normalizer_1735929714516/work
+click @ file:///home/conda/feedstock_root/build_artifacts/click_1734858813237/work
+dash @ file:///home/conda/feedstock_root/build_artifacts/dash_1737726527110/work
+filelock==3.13.1
+Flask @ file:///home/conda/feedstock_root/build_artifacts/flask_1731556349671/work
+frozenlist @ file:///home/conda/feedstock_root/build_artifacts/frozenlist_1737645236190/work
+fsspec==2024.6.1
+idna @ file:///home/conda/feedstock_root/build_artifacts/idna_1733211830134/work
+imageio==2.37.0
+importlib_metadata @ file:///home/conda/feedstock_root/build_artifacts/importlib-metadata_1737420181517/work
+itsdangerous @ file:///home/conda/feedstock_root/build_artifacts/itsdangerous_1733308265247/work
+Jinja2==3.1.4
+lazy_loader==0.4
+loguru @ file:///home/conda/feedstock_root/build_artifacts/loguru_1725349738824/work
+MarkupSafe==2.1.5
+mpmath==1.3.0
+msgpack @ file:///home/conda/feedstock_root/build_artifacts/msgpack-python_1725974992554/work
+multidict @ file:///home/conda/feedstock_root/build_artifacts/multidict_1733913043842/work
+narwhals @ file:///home/conda/feedstock_root/build_artifacts/narwhals_1739851660861/work
+nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_1733325553580/work
+networkx==3.3
+numpy @ file:///home/conda/feedstock_root/build_artifacts/numpy_1739425563623/work/dist/numpy-2.2.3-cp311-cp311-linux_x86_64.whl#sha256=ad533320b8f7789fb3226bbcae843a895a6d040ea1cca5244a16ab2a9fdb2ec1
+nvidia-cublas-cu11==11.11.3.6
+nvidia-cuda-cupti-cu11==11.8.87
+nvidia-cuda-nvrtc-cu11==11.8.89
+nvidia-cuda-runtime-cu11==11.8.89
+nvidia-cudnn-cu11==9.1.0.70
+nvidia-cufft-cu11==10.9.0.58
+nvidia-curand-cu11==10.3.0.86
+nvidia-cusolver-cu11==11.4.1.48
+nvidia-cusparse-cu11==11.7.5.86
+nvidia-nccl-cu11==2.21.5
+nvidia-nvtx-cu11==11.8.86
+open3d-cpu @ file:///home/conda/feedstock_root/build_artifacts/open3d_1737748990877/work/build/lib/python_package/pip_package/open3d_cpu-0.19.0%2Bd28f9fd-cp311-cp311-manylinux_2_17_x86_64.whl#sha256=23b99339630157aff030c4a0c300ecda02f8bdf03b90e7ed151b758cffb1cc31
+packaging @ file:///home/conda/feedstock_root/build_artifacts/packaging_1733203243479/work
+pillow==11.0.0
+plotly @ file:///home/conda/feedstock_root/build_artifacts/plotly_1738287743623/work
+propcache @ file:///home/conda/feedstock_root/build_artifacts/propcache_1737635528546/work
+PySocks @ file:///home/conda/feedstock_root/build_artifacts/pysocks_1733217236728/work
+requests @ file:///home/conda/feedstock_root/build_artifacts/requests_1733217035951/work
+retrying @ file:///home/conda/feedstock_root/build_artifacts/retrying_1740053923454/work
+scikit-image==0.25.2
+scipy==1.15.2
+six @ file:///home/conda/feedstock_root/build_artifacts/six_1733380938961/work
+sympy==1.13.1
+tifffile==2025.2.18
+torch==2.6.0+cu118
+torchaudio==2.6.0+cu118
+torchvision==0.21.0+cu118
+triton==3.2.0
+typing_extensions @ file:///home/conda/feedstock_root/build_artifacts/typing_extensions_1733188668063/work
+urllib3 @ file:///home/conda/feedstock_root/build_artifacts/urllib3_1708239446578/work
+vtk==9.3.1
+Werkzeug @ file:///home/conda/feedstock_root/build_artifacts/werkzeug_1733160440960/work
+wslink @ file:///home/conda/feedstock_root/build_artifacts/wslink_1740199482166/work
+yarl @ file:///home/conda/feedstock_root/build_artifacts/yarl_1737575777699/work
+zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1732827521216/work
